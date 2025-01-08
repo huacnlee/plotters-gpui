@@ -8,6 +8,12 @@ pub struct Line {
     pub color: Hsla,
 }
 
+impl Default for Line {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Line {
     pub fn new() -> Self {
         Self {
@@ -16,6 +22,7 @@ impl Line {
             color: gpui::black(),
         }
     }
+
     pub fn between_points(start: Point<Pixels>, end: Point<Pixels>) -> Self {
         let mut line = Self::new();
         line.add_point(start);
@@ -23,8 +30,13 @@ impl Line {
         line
     }
 
-    pub fn width(mut self, width: f64) -> Self {
+    pub fn width(mut self, width: impl Into<Pixels>) -> Self {
         self.width = width.into();
+        self
+    }
+
+    pub fn color(mut self, color: impl Into<Hsla>) -> Self {
+        self.color = color.into();
         self
     }
 
@@ -37,7 +49,7 @@ impl Line {
             warn!("Line must have at least 1 points to render");
             return;
         }
-
+      
         let stroke = tiny_skia::Stroke {
             width: self.width.0,
             ..Default::default()
@@ -46,6 +58,7 @@ impl Line {
         let Some(first_p) = self.points.first() else {
             return;
         };
+
 
         builder.move_to(first_p.x.0, first_p.y.0);
         for p in self.points.iter().skip(1) {
