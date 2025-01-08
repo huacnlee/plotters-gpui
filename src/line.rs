@@ -38,61 +38,47 @@ impl Line {
             return;
         }
 
-        let mut stroke = tiny_skia::Stroke::default();
-        stroke.width = self.width.0;
+        dbg!(&self.points);
+
+        let stroke = tiny_skia::Stroke {
+            width: self.width.0,
+            ..Default::default()
+        };
         let mut builder = tiny_skia::PathBuilder::new();
         for p in self.points.iter() {
             builder.line_to(p.x.0, p.y.0);
         }
-        let path = builder.finish().unwrap();
-        let s_path = path.stroke(&stroke, cx.scale_factor()).unwrap();
+        let Some(path) = builder.finish() else {
+            return;
+        };
+        let Some(s_path) = path.stroke(&stroke, cx.scale_factor()) else {
+            return;
+        };
 
-        let first_p = s_path.points().first().unwrap();
-        let mut path = Path::new(point(first_p.x.into(), first_p.y.into()));
+        let Some(first_p) = s_path.points().first() else {
+            return;
+        };
+
+        let mut path = Path::new(s_point(*first_p));
         for i in 1..s_path.len() - 1 {
             let p = s_path.points()[i];
             let verb = s_path.verbs()[i];
+
             match verb {
                 tiny_skia_path::PathVerb::Line => {
-                    println!("L {:?}", p);
-                    path.line_to(point(p.x.into(), p.y.into()));
+                    path.line_to(s_point(p));
                 }
                 tiny_skia_path::PathVerb::Move => {
-                    println!("M {:?}", p);
-                    path.move_to(point(p.x.into(), p.y.into()));
+                    path.move_to(s_point(p));
                 }
+                tiny_skia_path::PathVerb::Close => path.close(),
                 _ => todo!(),
             }
         }
         cx.paint_path(path, self.color);
-        return;
-
-        let first_point = self.points[0];
-        let width = self.width;
-        let mut angle = f32::atan2(
-            self.points.first().unwrap().y.0 - self.points.last().unwrap().y.0,
-            self.points.first().unwrap().x.0 - self.points.last().unwrap().x.0,
-        );
-        angle += std::f32::consts::FRAC_PI_2;
-        let shift = point(width * f32::cos(angle), width * f32::sin(angle));
-        let mut reversed_points = vec![first_point + shift];
-        let mut path = Path::new(first_point);
-        let mut prev_p = first_point;
-        for p in self.points.iter().cloned().skip(1) {
-            let mut angle = f32::atan2(prev_p.y.0 - p.y.0, prev_p.x.0 - p.x.0);
-            angle += std::f32::consts::FRAC_PI_2;
-            let shift = point(width * f32::cos(angle), width * f32::sin(angle));
-
-            path.line_to(p);
-            reversed_points.push(p + shift);
-            prev_p = p;
-        }
-
-        // now do the reverse to close the path
-        for p in reversed_points.into_iter().rev() {
-            path.line_to(p);
-        }
-
-        cx.paint_path(path, self.color);
     }
+}
+
+fn s_point(p: tiny_skia::Point) -> Point<Pixels> {
+    point(p.x.into(), p.y.into())
 }
