@@ -45,7 +45,9 @@ impl Line {
             ..Default::default()
         };
         let mut builder = tiny_skia::PathBuilder::new();
-        for p in self.points.iter() {
+        let first_p = self.points.first().unwrap();
+        builder.move_to(first_p.x.0, first_p.y.0);
+        for p in self.points.iter().skip(1) {
             builder.line_to(p.x.0, p.y.0);
         }
         let Some(path) = builder.finish() else {
