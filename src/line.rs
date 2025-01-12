@@ -45,29 +45,28 @@ impl Line {
     }
 
     pub fn render_pixels(&mut self, cx: &mut WindowContext) {
-        if self.points.is_empty() {
-            warn!("Line must have at least 1 points to render");
+        if self.points.len() < 2 {
+            warn!("Line must have at least 2 points to render");
             return;
         }
-      
+
         let stroke = tiny_skia::Stroke {
             width: self.width.0,
+            line_join: tiny_skia::LineJoin::Miter,
+            line_cap: tiny_skia::LineCap::Square,
             ..Default::default()
         };
-        let mut builder = tiny_skia::PathBuilder::new();
-        let Some(first_p) = self.points.first() else {
-            return;
-        };
 
+        // Draw each line segment separately to handle overlapping properly
+        for window in self.points.windows(2) {
+            let mut builder = tiny_skia::PathBuilder::new();
+            builder.move_to(window[0].x.0, window[0].y.0);
+            builder.line_to(window[1].x.0, window[1].y.0);
 
-        builder.move_to(first_p.x.0, first_p.y.0);
-        for p in self.points.iter().skip(1) {
-            builder.line_to(p.x.0, p.y.0);
+            if let Some(path) = stroke_path(builder, &stroke, cx) {
+                cx.paint_path(path, self.color);
+            }
         }
-        let Some(path) = stroke_path(builder, &stroke, cx) else {
-            return;
-        };
-        cx.paint_path(path, self.color);
     }
 }
 
