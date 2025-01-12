@@ -45,8 +45,8 @@ impl Line {
     }
 
     pub fn render_pixels(&mut self, cx: &mut WindowContext) {
-        if self.points.len() < 2 {
-            warn!("Line must have at least 2 points to render");
+        if self.points.is_empty() {
+            warn!("Line must have at least 1 point to render");
             return;
         }
 
@@ -56,6 +56,19 @@ impl Line {
             line_cap: tiny_skia::LineCap::Square,
             ..Default::default()
         };
+
+        // Handle single point case
+        if self.points.len() == 1 {
+            let point = self.points[0];
+            let mut builder = tiny_skia::PathBuilder::new();
+            builder.move_to(point.x.0, point.y.0);
+            builder.line_to(point.x.0, point.y.0);
+
+            if let Some(path) = stroke_path(builder, &stroke, cx) {
+                cx.paint_path(path, self.color);
+            }
+            return;
+        }
 
         // Draw each line segment separately to handle overlapping properly
         for window in self.points.windows(2) {
