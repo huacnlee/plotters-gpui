@@ -9,7 +9,7 @@ license = "MIT"
 
 [dependencies]
 plotters-backend = "0.3.7"
-gpui = { git = "https://github.com/zed-industries/zed", rev = "b65dc8c5666f563057164aaf01f796eaaa43ef3e" }
+gpui = { git = "https://github.com/zed-industries/zed" }
 parking_lot = "0.12.3"
 plotters = { version = "0.3.7", optional = true }
 tracing = "0.1"

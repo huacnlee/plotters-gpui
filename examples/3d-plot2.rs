@@ -1,4 +1,4 @@
-use gpui::{div, prelude::*, App, AppContext, View, ViewContext, WindowContext, WindowOptions};
+use gpui::{div, prelude::*, App, AppContext, Application, Entity, Window, WindowOptions};
 use parking_lot::RwLock;
 use plotters::coord::Shift;
 use plotters::drawing::DrawingArea;
@@ -17,22 +17,22 @@ fn pdf(x: f64, y: f64) -> f64 {
 }
 
 struct MainViewer {
-    figure: View<PlottersDrawAreaViewer>,
+    figure: Entity<PlottersDrawAreaViewer>,
 }
 
 impl MainViewer {
-    fn new(model: Rc<RwLock<PlottersDrawAreaModel>>, cx: &mut WindowContext) -> Self {
+    fn new(model: Rc<RwLock<PlottersDrawAreaModel>>, cx: &mut App) -> Self {
         let figure = PlottersDrawAreaViewer::with_shared_model(model);
 
         Self {
-            figure: cx.new_view(move |_| figure),
+            figure: cx.new(move |_| figure),
         }
     }
 }
 
 impl Render for MainViewer {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        cx.defer(move |_, cx| {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        cx.defer_in(window, move |_, _, cx| {
             cx.notify();
         });
 
@@ -114,21 +114,21 @@ impl PlottersChart for MyChart {
     }
 }
 
-fn main_viewer(cx: &mut WindowContext) -> MainViewer {
+fn main_viewer(cx: &mut App) -> MainViewer {
     let figure = PlottersDrawAreaModel::new(Box::new(MyChart::new()));
     MainViewer::new(Rc::new(RwLock::new(figure)), cx)
 }
 
 fn main() {
-    App::new().run(move |cx: &mut AppContext| {
+    Application::new().run(move |cx: &mut App| {
         cx.open_window(
             WindowOptions {
                 focus: true,
                 ..Default::default()
             },
-            move |cx| {
+            move |_, cx| {
                 let view = main_viewer(cx);
-                cx.new_view(move |_| view)
+                cx.new(move |_| view)
             },
         )
         .unwrap();

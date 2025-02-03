@@ -1,5 +1,5 @@
 use chrono::Duration;
-use gpui::{div, prelude::*, App, AppContext, View, ViewContext, WindowContext, WindowOptions};
+use gpui::{div, prelude::*, App, AppContext, Application, Context, Entity, Window, WindowOptions};
 use parking_lot::RwLock;
 use plotters::coord::Shift;
 use plotters::prelude::*;
@@ -12,23 +12,23 @@ fn parse_time(t: &str) -> chrono::NaiveDate {
 }
 
 struct MainViewer {
-    figure: View<PlottersDrawAreaViewer>,
+    figure: Entity<PlottersDrawAreaViewer>,
     animation: bool,
 }
 
 impl MainViewer {
-    fn new(model: Rc<RwLock<PlottersDrawAreaModel>>, cx: &mut WindowContext) -> Self {
+    fn new(model: Rc<RwLock<PlottersDrawAreaModel>>, cx: &mut App) -> Self {
         let figure = PlottersDrawAreaViewer::with_shared_model(model);
 
         Self {
-            figure: cx.new_view(move |_| figure),
+            figure: cx.new(move |_| figure),
             animation: false,
         }
     }
 }
 
 impl Render for MainViewer {
-    fn render(&mut self, _: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         div()
             .size_full()
             .flex_col()
@@ -114,7 +114,7 @@ impl PlottersChart for StockChart {
     }
 }
 
-fn main_viewer(cx: &mut WindowContext) -> MainViewer {
+fn main_viewer(cx: &mut App) -> MainViewer {
     let figure = PlottersDrawAreaModel::new(Box::new(StockChart::new()));
     let mut main_viewer = MainViewer::new(Rc::new(RwLock::new(figure)), cx);
     main_viewer.animation = true;
@@ -123,15 +123,15 @@ fn main_viewer(cx: &mut WindowContext) -> MainViewer {
 }
 
 fn main() {
-    App::new().run(move |cx: &mut AppContext| {
+    Application::new().run(move |cx: &mut App| {
         cx.open_window(
             WindowOptions {
                 focus: true,
                 ..Default::default()
             },
-            move |cx| {
+            move |_, cx| {
                 let view = main_viewer(cx);
-                cx.new_view(move |_| view)
+                cx.new(move |_| view)
             },
         )
         .unwrap();

@@ -1,24 +1,25 @@
 use crate::line::Line;
 use crate::utils::{color_to_hsla, coord_to_point};
-use gpui::{point, px, Bounds, Pixels, SharedString, TextRun};
+use gpui::{point, px, App, Bounds, Pixels, SharedString, TextRun, Window};
 use plotters_backend::{
     BackendColor, BackendCoord, BackendStyle, BackendTextStyle, DrawingBackend, DrawingErrorKind,
 };
 
 /// The embedded backend for plotters in gpui
-pub struct GpuiBackend<'a, 'b> {
+pub struct GpuiBackend<'a> {
     bounds: Bounds<Pixels>,
-    cx: &'a mut gpui::WindowContext<'b>,
+    window: &'a mut Window,
+    cx: &'a mut App,
 }
 
-impl<'a, 'b> GpuiBackend<'a, 'b> {
+impl<'a> GpuiBackend<'a> {
     /// Create a new embedded backend
-    pub fn new(bounds: Bounds<Pixels>, cx: &'a mut gpui::WindowContext<'b>) -> Self {
-        Self { bounds, cx }
+    pub fn new(bounds: Bounds<Pixels>, window: &'a mut Window, cx: &'a mut App) -> Self {
+        Self { bounds, window, cx }
     }
 }
 
-impl DrawingBackend for GpuiBackend<'_, '_> {
+impl DrawingBackend for GpuiBackend<'_> {
     type ErrorType = crate::Error;
 
     fn get_size(&self) -> (u32, u32) {
@@ -55,7 +56,7 @@ impl DrawingBackend for GpuiBackend<'_, '_> {
         .width(px(style.stroke_width() as _))
         .color(color_to_hsla(style.color()));
 
-        line.render_pixels(self.cx);
+        line.render_pixels(self.window);
         Ok(())
     }
 
@@ -76,7 +77,7 @@ impl DrawingBackend for GpuiBackend<'_, '_> {
             path.line_to(bottom_right);
             path.line_to(point(bottom_right.x, upper_left.y));
             path.line_to(upper_left);
-            self.cx.paint_path(path, color);
+            self.window.paint_path(path, color);
         } else {
             for (p1, p2) in [
                 (upper_left, point(bottom_right.x, upper_left.y)),
@@ -86,7 +87,7 @@ impl DrawingBackend for GpuiBackend<'_, '_> {
             ] {
                 Line::between_points(p1, p2)
                     .color(color)
-                    .render_pixels(self.cx);
+                    .render_pixels(self.window);
             }
         }
 
@@ -113,7 +114,7 @@ impl DrawingBackend for GpuiBackend<'_, '_> {
         line.points = points;
         line.width = px(style.stroke_width() as _);
         line.color = color_to_hsla(style.color());
-        line.render_pixels(self.cx);
+        line.render_pixels(self.window);
 
         Ok(())
     }
@@ -133,7 +134,7 @@ impl DrawingBackend for GpuiBackend<'_, '_> {
             path.line_to(coord_to_point(self.bounds.origin, point));
         }
         let color = color_to_hsla(style.color());
-        self.cx.paint_path(path, color);
+        self.window.paint_path(path, color);
         Ok(())
     }
 
@@ -145,12 +146,12 @@ impl DrawingBackend for GpuiBackend<'_, '_> {
     ) -> Result<(), DrawingErrorKind<Self::ErrorType>> {
         let color = color_to_hsla(style.color());
         let point = coord_to_point(self.bounds.origin, pos);
-        let font = self.cx.text_style().font();
+        let font = self.window.text_style().font();
         let len = text.len();
         let size = px(style.size() as _);
 
         let shaped_line = self
-            .cx
+            .window
             .text_system()
             .shape_line(
                 SharedString::from(text.to_string()),
@@ -165,12 +166,14 @@ impl DrawingBackend for GpuiBackend<'_, '_> {
                 }],
             )
             .map_err(|err| DrawingErrorKind::FontError(err.to_string().into()))?;
-        shaped_line.paint(point, size, self.cx).map_err(|err| {
-            DrawingErrorKind::DrawingError(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                err.to_string(),
-            ))
-        })?;
+        shaped_line
+            .paint(point, size, self.window, self.cx)
+            .map_err(|err| {
+                DrawingErrorKind::DrawingError(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    err.to_string(),
+                ))
+            })?;
 
         Ok(())
     }
